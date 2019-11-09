@@ -47,14 +47,17 @@ class sockServer(object):
     def read(self, sock):
         while True:
             message = sock.recv(1024)
+            if message == b"":
+                break
             client_name = self._client_sock2name[sock]
+            me_message = ("ME: "+ str(message)).encode()
+            sock.sendall(me_message)
             message = str(client_name) + ": " + str(message)
             message = message.encode()
             print("message:", message)
-            if message == b"":
-                break
             for client_sock in self._client_name2sock.values():
-                client_sock.sendall(message)
+                if client_sock != sock:
+                    client_sock.sendall(message)
         
 if __name__ == "__main__":
     server = sockServer()

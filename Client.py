@@ -7,7 +7,9 @@ class sockClient(object):
     def __init__(self):
         self._sock = None
         self._stdscr = curses.initscr()
-        self._y = 3
+        self._print_index = 3
+        self._input_index = 25
+        self._message_queue = []
 
     def init(self, host = "localhost", post = 15968):
         self.set_win()
@@ -28,7 +30,7 @@ class sockClient(object):
         print_thread.daemon = True
         print_thread.start()
         self._stdscr.addstr(2, 0, "Running... ", curses.color_pair(1))
-        self._stdscr.addstr(20, 0, "ME: ", curses.color_pair(1))
+        self._stdscr.addstr(self._input_index, 0, "ME: ", curses.color_pair(1))
         self._stdscr.refresh()
         while True:
             if not input_thread.is_alive() or not print_thread.is_alive():
@@ -53,20 +55,28 @@ class sockClient(object):
 
     def print_message(self):
         while True:
+            # 堵塞
             message = self._sock.recv(1024)
             if not message:
                 break
-            self._stdscr.addstr(self._y, 0, message, curses.color_pair(1))
-            self._stdscr.addstr(20, 0, "ME: ", curses.color_pair(1))
+            if len(self._message_queue) > 20:
+                self._message_queue.pop(0)
+            self._message_queue.append(message)
+
+            for i in range(len(self._message_queue)):
+                index = i + self._print_index
+                m = self._message_queue[i]
+                self._stdscr.addstr(index, 3, ' '*50, curses.color_pair(1))
+                self._stdscr.addstr(index, 3, m, curses.color_pair(1))
+
+            self._stdscr.addstr(self._input_index, 0, "ME: ", curses.color_pair(1))
             self._stdscr.refresh()
-            self._y += 1
-            self._y = self._y % 15
 
     def input(self):
         self._stdscr.nodelay(0)
         while True:
-            s = self._stdscr.getstr(20, 5)
-            self._stdscr.addstr(20, 5, " "*100, curses.color_pair(1))
+            s = self._stdscr.getstr(self._input_index, 5)
+            self._stdscr.addstr(self._input_index, 4, " "*100, curses.color_pair(1))
             if s == b"":
                 break
             self._sock.sendall(s)
@@ -84,7 +94,10 @@ if __name__ == "__main__":
     client.init()
 
     # run Loop
-    client.running()
-
+    try:
+        client.running()
+    except Exception:
+        pass
     # close
-    client.close()
+    finally:
+        client.close()
